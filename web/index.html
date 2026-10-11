@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>西格玛男人生成器</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">西格玛男人生成器<small>SIGMA MALE GENERATOR</small></div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+  <aside class="rail">
+    <div class="card">
+      <h3>录制</h3>
+      <div class="row">
+        <label>时长</label>
+        <input id="recSecs" type="number" min="1" max="120" step="1" value="25">
+        <label>倒数</label>
+        <input id="recCd" type="number" min="0" max="10" step="1" value="5">
+      </div>
+      <div style="height:8px"></div>
+      <button class="btn primary" id="btnRec" disabled>开始录制</button>
+      <div style="height:6px"></div>
+      <button class="btn" id="btnStop" disabled>停止（提前收尾）</button>
+      <div style="height:6px"></div>
+      <div class="kv"><span>状态</span><b id="recState">—</b></div>
+      <div class="kv"><span>进度</span><b id="recProg">—</b></div>
+      <p class="hintline" id="recHint">录下来的是「录制所见」那版画面（所见即所录）。
+        切成 raw 就是纯原画，切成 sigma 就带框。</p>
+    </div>
+
+    <div class="card">
+      <h3>画面模式</h3>
+      <div class="seg" id="segMode"></div>
+      <p class="hintline" id="modeHint"></p>
+    </div>
+
+    <div class="card">
+      <h3>预览</h3>
+      <div class="seg" id="segView"></div>
+      <p class="hintline" id="viewHint"></p>
+    </div>
+
+    <div class="card">
+      <h3>摄像头</h3>
+      <div class="kv"><span>索引</span><b id="vCam">—</b></div>
+      <div class="kv"><span>分辨率</span><b id="vRes">—</b></div>
+      <div class="kv"><span>状态</span><b id="vState">—</b></div>
+    </div>
+  </aside>
+
+  <section class="monitor">
+    <div class="stage">
+      <img id="live" alt="实时预览">
+      <video id="player" playsinline controls preload="metadata" style="display:none"></video>
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <div class="overlay" id="stageOverlay"><span id="ovText">启动中…</span></div>
+      <div class="recoverlay" id="recOverlay"><b id="recBig"></b></div>
+    </div>
+    <div class="strip">
+      <div class="tabs">
+        <button id="tabLive" class="on">实时预览</button>
+        <button id="tabPlay">成品播放</button>
+      </div>
+      <span class="vlabel" id="vLabel">—</span>
+      <div class="reads">
+        <span>fps <b id="rFps">—</b></span>
+        <span>帧 <b id="rFrames">—</b></span>
+        <span>人脸 <b id="rFace">—</b></span>
+        <span>姿态 <b id="rPose">—</b></span>
+      </div>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="card">
+      <h3>生产线 <span id="pipeState" style="color:var(--hint)"></span></h3>
+      <label class="fld">交错素材</label>
+      <input id="plMaterial" type="text" placeholder="参考片 mp4 路径">
+      <div class="fldrow">
+        <span class="fld">实拍素材（可多段）</span>
+        <span>
+          <button class="mini" type="button" id="btnFresh">用最新</button>
+          <button class="mini" type="button" id="btnClear">清空</button>
+        </span>
+      </div>
+      <textarea id="plFootage" rows="2"
+        placeholder="每行一段。多段会先合并再出片 —— 只给一段的话，成片镜头全来自那一段，容易反复用同一小段"></textarea>
+      <select id="plPick"><option value="">— 选一个加到上面 —</option></select>
+      <div class="row">
+        <label>模板</label>
+        <select id="plTemplate">
+          <option value="both">两条都出</option>
+          <option value="ref">复刻版</option>
+          <option value="slop">卡点版</option>
+        </select>
+        <label>画幅</label>
+        <select id="plAspect">
+          <option value="vertical">竖屏</option>
+          <option value="square">方形</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>人脸特写</label>
+        <select id="plFace">
+          <option value="0">不用</option>
+          <option value="2">2x（近景）</option>
+          <option value="2.4">2.4x</option>
+          <option value="3" selected>3x（证件照）</option>
+        </select>
+      </div>
+      <label class="chk"><input type="checkbox" id="plLock"><span>锁头运镜（配合人脸特写）</span></label>
+      <label class="chk"><input type="checkbox" id="plGrade"><span>先调色（灰调冷色）</span></label>
+      <label class="chk"><input type="checkbox" id="plDry"><span>仅演练（不真跑，只验参数与步骤）</span></label>
+      <p class="hintline" id="faceHint">特写要用**无叠加素材**（raw 模式录的），
+        否则框和标签会被一起裁进去。</p>
+      <div style="height:8px"></div>
+      <button class="btn primary" id="btnPipe" disabled>开始出片</button>
+      <div style="height:6px"></div>
+      <button class="btn" id="btnPipeStop" disabled>停止</button>
+      <div style="height:10px"></div>
+      <div class="steps" id="steps"></div>
+      <p class="hintline" id="pipeHint">检测 → 切片 → 成片 → 验收。
+        验收不通过会整条线失败并写明是哪一项。</p>
+    </div>
+
+    <div class="card">
+      <h3>成果库 <span id="artCount" style="color:var(--hint)"></span></h3>
+      <div id="artifacts"></div>
+    </div>
+  </aside>
+</main>
+
+<footer><span class="line" id="logline">启动中…</span></footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

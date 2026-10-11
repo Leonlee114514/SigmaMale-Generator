@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>卡点剪辑方案 — 音频分析 + 自动成片</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d2129; --line:#2a2f3a;
+    --txt:#e6e9ef; --dim:#9aa3b2; --gold:#e8b33c; --gold2:#ffd479;
+    --green:#4ec97a; --red:#e2565f; --blue:#5aa9e6; --purple:#a97bd6;
+    --mono:"Cascadia Code","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:15px/1.75 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    padding:0 0 80px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 28px}
+  header{padding:52px 0 34px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(232,179,60,.07),transparent)}
+  h1{margin:0 0 10px;font-size:30px;letter-spacing:-.4px}
+  h1 .tag{font-size:12px;vertical-align:middle;margin-left:12px;padding:4px 11px;
+    border-radius:20px;background:rgba(78,201,122,.14);color:var(--green);
+    border:1px solid rgba(78,201,122,.35);font-weight:500;letter-spacing:0}
+  .sub{color:var(--dim);font-size:14.5px}
+  .meta{margin-top:18px;display:flex;gap:24px;flex-wrap:wrap;font-size:13px;color:var(--dim)}
+  .meta b{color:var(--txt);font-weight:600}
+  h2{margin:52px 0 8px;font-size:21px;padding-bottom:11px;
+    border-bottom:1px solid var(--line)}
+  h2 .n{color:var(--gold);font-family:var(--mono);font-size:15px;
+    margin-right:11px;opacity:.85}
+  h3{margin:30px 0 10px;font-size:16.5px;color:var(--gold2)}
+  p{margin:11px 0}
+  code{font-family:var(--mono);font-size:13px;background:var(--panel2);
+    padding:2px 6px;border-radius:5px;color:var(--gold2)}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;
+    line-height:1.65;margin:14px 0}
+  pre code{background:none;padding:0;color:#cfd6e4}
+  .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--gold)}
+  .c{color:#697585}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+  th,td{padding:10px 13px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--dim);font-weight:600;font-size:12.5px;
+    text-transform:uppercase;letter-spacing:.5px}
+  tr:hover td{background:rgba(255,255,255,.017)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:20px 22px;margin:18px 0}
+  .card.gold{border-left:3px solid var(--gold)}
+  .card.red{border-left:3px solid var(--red)}
+  .card.green{border-left:3px solid var(--green)}
+  .card.blue{border-left:3px solid var(--blue)}
+  .card h4{margin:0 0 9px;font-size:15.5px}
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;
+    font-family:var(--mono);margin-right:7px}
+  .p-ok{background:rgba(78,201,122,.14);color:var(--green);border:1px solid rgba(78,201,122,.3)}
+  .p-bad{background:rgba(226,86,95,.14);color:var(--red);border:1px solid rgba(226,86,95,.3)}
+  .p-warn{background:rgba(232,179,60,.14);color:var(--gold);border:1px solid rgba(232,179,60,.3)}
+  .p-info{background:rgba(90,169,230,.14);color:var(--blue);border:1px solid rgba(90,169,230,.3)}
+  ul,ol{margin:11px 0;padding-left:24px}
+  li{margin:7px 0}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}
+  @media(max-width:760px){.kpi{grid-template-columns:repeat(2,1fr)}}
+  .kpi div{background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 14px;text-align:center}
+  .kpi .v{font-size:22px;font-weight:600;color:var(--gold);font-family:var(--mono)}
+  .kpi .l{font-size:12px;color:var(--dim);margin-top:5px}
+  .ask{background:linear-gradient(135deg,rgba(232,179,60,.1),rgba(232,179,60,.03));
+    border:1px solid rgba(232,179,60,.32);border-radius:12px;padding:22px 24px;margin:22px 0}
+  .ask h4{margin:0 0 12px;color:var(--gold);font-size:16px}
+  .ans{background:linear-gradient(135deg,rgba(78,201,122,.1),rgba(78,201,122,.03));
+    border:1px solid rgba(78,201,122,.32);border-radius:12px;padding:22px 24px;margin:22px 0}
+  .ans h4{margin:0 0 12px;color:var(--green);font-size:16px}
+  .foot{margin-top:60px;padding-top:22px;border-top:1px solid var(--line);
+    color:var(--dim);font-size:13px}
+  svg{max-width:100%;height:auto;display:block;margin:20px auto}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>卡点剪辑方案 · 音频分析 + 自动成片<span class="tag">已跑通</span></h1>
+    <div class="sub">真实 BGM 结构分析 → 找出最佳切点 → 脚本自动剪辑（含全部特效）</div>
+    <div class="meta">
+      <span>BGM <b>gigachad_phonk.aac (146.3s)</b></span>
+      <span>测试 <b class="ok">全部通过</b></span>
+      <span>成片 <b>1080×1920 / 18.75s</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ============================================ 1 -->
+<h2><span class="n">01</span>先回答你的三个问题</h2>
+
+<div class="ans">
+  <h4>Q1：能写成脚本自动执行吗？需要剪辑软件 API 或 MCP 吗？</h4>
+  <p><b>能，而且完全不需要剪辑软件 API 或 MCP。</b>
+  整条流水线只用 <code>ffmpeg</code> 一条命令行完成 ——
+  硬切、变速、闪白、抖动、RGB 分离、VHS 颗粒、竖屏、配乐、淡出，
+  全部是 ffmpeg 滤镜。</p>
+  <p>为什么不需要剪映/PR 的 API：那些软件的价值在<b>手工拖时间轴</b>，
+  而我们的切点是<b>算出来的</b>（对齐 128BPM 拍网格），不是拖出来的。
+  算好的切点直接生成 <code>filter_complex</code>，比调 API 更直接、更可复现。</p>
+  <p><b>什么时候才需要 API/MCP：</b>需要人工微调、需要模板库（剪映的"一键成片"）、
+  或者要输出到特定平台工程文件时才值得。纯"算法卡点"用不上。</p>
+</div>
+
+<div class="ans">
+  <h4>Q2：GitHub 上有没有好的开源音频分析项目？</h4>
+  <p>有，而且我<b>真的装上对比过了</b>（不是只列名字）：</p>
+  <table>
+    <tr><th>项目</th><th>能力</th><th>本机可行性</th></tr>
+    <tr>
+      <td><code>librosa</code></td>
+      <td>节拍/onset/tempo/结构，工业界标准</td>
+      <td class="ok">已装（1.0.0，39 分钟）</td>
+    </tr>
+    <tr>
+      <td><code>mir-aidj/all-in-one</code></td>
+      <td><b>功能段落标注</b>（intro/verse/chorus/outro）<br>直接给"主副歌切换点"</td>
+      <td class="bad">需 PyTorch（约 200MB+）<br>本机 75KB/s 下不现实</td>
+    </tr>
+    <tr>
+      <td><code>madmom</code></td>
+      <td>RNN+DBN 节拍/强拍追踪，精度最好</td>
+      <td class="bad">需编译，本机无 C 工具链</td>
+    </tr>
+    <tr>
+      <td><code>aubio</code> / <code>essentia</code></td>
+      <td>onset/pitch/节奏</td>
+      <td class="warn">未试（librosa 已够）</td>
+    </tr>
+  </table>
+  <p><b>实测结论：librosa 值得用，但差距不在 BPM，而在相位精度。</b>
+  见下方"手写 vs librosa"对比。真正需要 all-in-one 的场景是"我完全不知道
+  这首歌什么结构"，而这次你已经给出了 22-41s 的范围，所以用不上。</p>
+</div>
+
+<div class="ans">
+  <h4>Q3：以后能用现成项目解决的就别自己造轮子</h4>
+  <p>同意，而且这次的经验正好印证了 —— 但也暴露一个反直觉的点：
+  <b>装一个库不代表它一定比手写好，必须实测对比才知道。</b></p>
+  <p>我把手写实现和 librosa 放在同一个可量化指标（底鼓命中率 + 中位偏差）
+  下比了一遍，结果见第 4 节：<b>命中率完全相同，精度 librosa 更好</b>。
+  所以结论是"该用"，但理由和"因为它是标准库"无关。</p>
+</div>
+
+<!-- ============================================ 2 -->
+<h2><span class="n">02</span>音频分析结果</h2>
+
+<h3>BPM：128（两种独立方法互相印证）</h3>
+<table>
+  <tr><th>方法</th><th>结果</th></tr>
+  <tr><td>起点间隔直方图投票（手写）</td><td>128.32</td></tr>
+  <tr><td>(BPM, 相位) 网格搜索（手写）</td><td>127.95</td></tr>
+  <tr><td>librosa <code>beat_track</code></td><td>129.20</td></tr>
+</table>
+<p>三者一致（前两者比值 1.003）。BPM 是可信的。</p>
+
+<h3>段落结构（<code>analyze_sections.py</code> 实测）</h3>
+<table>
+  <tr><th>时间</th><th>时长</th><th>sub 能量</th><th>标签</th></tr>
+  <tr><td>0.25 – 17.09</td><td>16.8s</td><td>20.0 dB</td><td>verse</td></tr>
+  <tr><td>17.09 – 24.57</td><td>7.5s</td><td>19.4 dB</td><td>verse</td></tr>
+  <tr><td>24.57 – 30.18</td><td>5.6s</td><td class="warn">−16.3 dB</td><td>break / 铺垫</td></tr>
+  <tr><td><b>30.18 – 50.76</b></td><td>20.6s</td><td class="ok"><b>40.0 dB</b></td><td><b>DROP / 副歌</b></td></tr>
+  <tr><td>50.76 – 60.11</td><td>9.4s</td><td>39.7 dB</td><td>DROP 延续</td></tr>
+  <tr><td>60.11 – 67.59</td><td>7.5s</td><td>−17.9 dB</td><td>break</td></tr>
+  <tr><td>67.59 – 127.44</td><td>59.9s</td><td>35.8 dB</td><td>chorus</td></tr>
+  <tr><td>138.66 – 146.31</td><td>7.7s</td><td>−33.9 dB</td><td>outro（渐弱）</td></tr>
+</table>
+
+<div class="card gold">
+  <h4>关键发现：你给的 22–41s 和 Drop 位置完全吻合</h4>
+  <p>结构分析独立算出：<b>sub（底鼓）能量在 30.18s 跃升 +64.3 dB</b>，
+  这就是 Drop。</p>
+  <p>而你说"前半段正常，时长大约 8s" ——
+  <b>22 + 8.18 = 30.18</b>，正好落在 Drop 上。你的听觉判断和算法结论一致。</p>
+  <p>更进一步：30.18s 附近的拍点是 <b>第 64 拍 = 第 16 小节第 0 拍</b>，
+  是一个乐句起点。所以切换点选在这里，音乐上是干净的。</p>
+</div>
+
+<!-- ============================================ 3 -->
+<h2><span class="n">03</span>时间轴方案</h2>
+
+<svg viewBox="0 0 680 250" xmlns="http://www.w3.org/2000/svg"
+     font-family="-apple-system,Segoe UI,Microsoft YaHei,sans-serif">
+  <!-- 时间轴主线 -->
+  <line x1="30" y1="120" x2="650" y2="120" stroke="#3a4150" stroke-width="2"/>
+
+  <!-- 正常段 -->
+  <rect x="30" y="96" width="238" height="48" rx="7" fill="rgba(90,169,230,.16)" stroke="#5aa9e6"/>
+  <text x="149" y="117" fill="#5aa9e6" font-size="12.5" text-anchor="middle" font-weight="600">正常速度 1.0x</text>
+  <text x="149" y="134" fill="#9aa3b2" font-size="10.5" text-anchor="middle">实拍 · 抬头 / 喝水 · 17 拍 = 7.97s</text>
+
+  <!-- 慢放冲击 -->
+  <rect x="268" y="96" width="18" height="48" rx="4" fill="rgba(232,179,60,.25)" stroke="#e8b33c"/>
+  <text x="277" y="90" fill="#e8b33c" font-size="10.5" text-anchor="middle">0.25x</text>
+
+  <!-- 快剪段 -->
+  <rect x="286" y="96" width="320" height="48" rx="7" fill="rgba(226,86,95,.13)" stroke="#e2565f"/>
+  <text x="446" y="117" fill="#e2565f" font-size="12.5" text-anchor="middle" font-weight="600">1.35x 快剪 · 22 刀</text>
+  <text x="446" y="134" fill="#9aa3b2" font-size="10.5" text-anchor="middle">实拍 ↔ 素材 交替 · 每拍一刀</text>
+
+  <!-- 刻度 -->
+  <text x="30" y="166" fill="#697585" font-size="10.5" text-anchor="middle">0.00s</text>
+  <text x="277" y="166" fill="#e8b33c" font-size="10.5" text-anchor="middle">7.97s</text>
+  <text x="606" y="166" fill="#697585" font-size="10.5" text-anchor="middle">18.75s</text>
+
+  <!-- Drop 标注 -->
+  <line x1="277" y1="70" x2="277" y2="96" stroke="#e8b33c" stroke-width="1.6" stroke-dasharray="4,3"/>
+  <text x="277" y="62" fill="#e8b33c" font-size="11.5" text-anchor="middle" font-weight="600">DROP 切换点</text>
+
+  <!-- 底部说明 -->
+  <text x="30" y="200" fill="#9aa3b2" font-size="11.5">BGM 截取 22.134s → 40.884s（第 47 拍 → 第 86 拍，共 40 拍）</text>
+  <text x="30" y="220" fill="#e8b33c" font-size="11.5">切换点 = BGM 30.103s = 第 64 拍 = 第 16 小节第 0 拍（乐句起点）</text>
+  <text x="30" y="240" fill="#697585" font-size="11">全部 40 个片段都对齐拍网格；误差 ≤ 半帧（约 17ms）</text>
+</svg>
+
+<h3>特效实现（逐条对应你的要求）</h3>
+<table>
+  <tr><th>你的要求</th><th>实现方式</th></tr>
+  <tr><td>硬切为主</td><td><code>concat</code> 直接拼接，不加转场</td></tr>
+  <tr><td>重鼓点闪白 0.04s</td><td><code>eq=brightness</code> + <code>mod()</code> 周期表达式，只作用于 Drop 之后</td></tr>
+  <tr><td>轻微抖动，只在 Drop</td><td><code>crop</code> 偏移乘 <code>gte(t,drop)</code> 门控</td></tr>
+  <tr><td>色差偏移 RGB 分离 5–10px</td><td><code>rgb_split(shift=6)</code>，水平偏移，全局叠加</td></tr>
+  <tr><td>VHS 颗粒 12–20，全程</td><td><code>noise=alls=14:allf=t+u</code>，全局</td></tr>
+  <tr><td>结尾渐弱</td><td><code>afade</code> 1.2s 淡出</td></tr>
+</table>
+
+<!-- ============================================ 4 -->
+<h2><span class="n">04</span>手写 vs librosa：实测对比</h2>
+
+<p>你要求"别造轮子"，所以我把 librosa 装上做了同口径对比。
+判据不是"谁的数字好看"，而是<b>谁的网格更能压住底鼓</b> ——
+这是剪辑真正关心的量。</p>
+
+<table>
+  <tr><th>方案</th><th>Drop 段命中率</th><th>中位偏差</th></tr>
+  <tr><td>手写（用全局相位）</td><td class="bad">0.0%</td><td class="bad">71.7ms</td></tr>
+  <tr><td>手写（分段精修相位）</td><td class="ok">71.4%</td><td class="warn">37.0ms</td></tr>
+  <tr><td><b>librosa</b></td><td class="ok">71.4%</td><td class="ok"><b>23.2ms</b></td></tr>
+</table>
+
+<div class="card gold">
+  <h4>最重要的发现：问题不在 BPM，在「相位必须在目标段落内拟合」</h4>
+  <p>同一套手写代码，用<b>全局相位</b>在 Drop 段命中率是 <b>0%</b>，
+  换成<b>在 Drop 段内重新拟合的相位</b>就是 71.4%。</p>
+  <p>原因：整首歌的相位会被前奏/主歌带偏，而剪辑只用到 Drop 段。
+  用包含不同段落的数据去拟合单一相位，会被结构差异污染。</p>
+  <p class="warn">这解释了一个很容易误判的现象：<b>"全局看起来还行，切出来却卡不准"</b>。</p>
+</div>
+
+<div class="card red">
+  <h4><span class="pill p-bad">方法论 BUG</span>相位搜索的目标函数选错了</h4>
+  <p>原来我用<b>命中率</b>当唯一判据，搜出相位 0.0677（命中率 71.4%）。
+  但命中率会<b>饱和</b> —— Drop 段最多只能压住 71.4% 的底鼓
+  （有些击打本就不在主拍上），所以：</p>
+  <table>
+    <tr><th>相位</th><th>命中率</th><th>中位偏差</th></tr>
+    <tr><td>0.0677（旧）</td><td>71.4%</td><td class="bad">37.0ms</td></tr>
+    <tr><td>0.1033（新）</td><td>71.4%</td><td class="ok"><b>4.4ms</b></td></tr>
+  </table>
+  <p><b>命中率完全相同，精度差 8 倍。</b>只看命中率永远挑不到好的那个。</p>
+  <p>修正：目标函数改为「先比命中率、同分时比中位偏差」，细扫 20000 个候选。
+  现用 <code>PHASE = 0.103266</code>。</p>
+</div>
+
+<!-- ============================================ 5 -->
+<h2><span class="n">05</span>开发中抓到的三个隐蔽 Bug</h2>
+
+<p>这三个都属于「代码看起来对、数学也对，但成片是坏的」。
+全部靠<b>量化指标</b>抓出来，肉眼看不出来。</p>
+
+<div class="card red">
+  <h4><span class="pill p-bad">BUG 1</span>多输入滤镜的输出被多处消费 → concat 尺寸不匹配</h4>
+  <pre><code><span class="bad">✗</span> ...overlay=...[n];[n]trim=...[a];[n]trim=...[b];[a][b]concat...
+   <span class="c">→ Input link in0:v0 (1280x720) 不匹配 (1080x1920)</span>
+<span class="ok">✓</span> ...overlay=...[n];[n]split=2[n0][n1];
+                  [n0]trim=...[a];[n1]trim=...[b];[a][b]concat...</code></pre>
+  <p><code>overlay</code> 是多输入滤镜，输出尺寸靠主输入推导（不是固定值）。
+  它的输出被多个下游消费时，ffmpeg 自动插入的 split 会让尺寸推导链断掉，
+  下游拿到的是<b>源尺寸</b>。</p>
+  <p class="warn">最阴的地方：这个坑<b>只在"源尺寸 ≠ 目标尺寸"时暴露</b>。
+  用小尺寸素材测试能通过，换真实大尺寸突然失败。</p>
+  <p>已排除的无效尝试：在 overlay 后补显式 <code>scale</code>、补
+  <code>format=yuv420p</code> —— 都没用，只有显式 split 有效。</p>
+</div>
+
+<div class="card red">
+  <h4><span class="pill p-bad">BUG 2</span>拍周期不是整数帧，误差逐段累积</h4>
+  <p>128 BPM 的拍周期 0.46875s，在 30fps 下 = <b>14.0625 帧</b>（不是整数）。
+  40 个片段首尾相接，每段四舍五入，<b>误差累加 0.15s</b>。</p>
+  <p>后果：后半段画面偏离 BGM，且按时间表达式触发的闪白会<b>整帧错过</b>。</p>
+  <p><b>解法</b>：每段输出起点吸附到<b>理想网格的最近帧</b>，
+  而不是"上一段结束的最近帧" —— 前者每段重新对齐，误差永远 ≤ 半帧；
+  后者会累积。</p>
+</div>
+
+<div class="card red">
+  <h4><span class="pill p-bad">BUG 3</span>trim 少取 1 帧，40 段丢 16 帧</h4>
+  <p><code>trim=duration</code> 按时间截断，若时长不是帧长整数倍，
+  实际帧数会比需要少 1 帧，随后的 <code>fps</code> 归一化就少产 1 帧。
+  成片从 18.75s 缩到 18.20s。</p>
+  <p><b>解法</b>：trim 时长多给 1 帧余量，<code>fps</code> 会正常丢掉多余帧。
+  修好后成片<b>精确 18.75s</b>。</p>
+</div>
+
+<!-- ============================================ 6 -->
+<h2><span class="n">06</span>验证结果</h2>
+
+<div class="kpi">
+  <div><div class="v">3.4<span style="font-size:13px">ms</span></div><div class="l">闪白对齐偏差</div></div>
+  <div><div class="v">23/23</div><div class="l">理论切点全部检出</div></div>
+  <div><div class="v">18.75<span style="font-size:13px">s</span></div><div class="l">成片时长（精确）</div></div>
+  <div><div class="v">0</div><div class="l">Drop 前的闪白</div></div>
+</div>
+
+<table>
+  <tr><th>验证项</th><th>方法</th><th>结果</th></tr>
+  <tr>
+    <td>闪白是否压点</td>
+    <td>解码成片 → 逐帧亮度 → 找近白帧 → 聚成事件 → 测间距</td>
+    <td class="ok">22 事件 / 间距 468.3ms<br>（拍周期 468.8ms）</td>
+  </tr>
+  <tr>
+    <td>前奏是否误闪</td>
+    <td>统计 Drop 之前的闪光事件数</td>
+    <td class="ok">0 个</td>
+  </tr>
+  <tr>
+    <td>硬切是否压点</td>
+    <td>帧间差找切点 → 与理论拍点比对</td>
+    <td class="ok">23/23 全部检出<br>中位偏差 33.3ms（=1 帧）</td>
+  </tr>
+  <tr>
+    <td>成片规格</td>
+    <td>读回分辨率/时长/音轨</td>
+    <td class="ok">1080×1920 · 18.75s · 含音轨</td>
+  </tr>
+  <tr>
+    <td>方形模式</td>
+    <td><code>--aspect square</code></td>
+    <td class="ok">1080×1080 · 通过</td>
+  </tr>
+</table>
+
+<div class="card gold">
+  <h4>验证方法本身也踩了两个坑（值得记下）</h4>
+  <p><b>1. 验证闪白不能用"比邻帧亮"。</b>
+  快剪段每拍硬切，两个源亮度差极大，每次硬切都产生亮度跳变 ——
+  结果 22 次切点全被误判成闪光（检出 30 个假事件）。
+  必须用<b>绝对阈值（接近纯白）</b>。</p>
+  <p><b>2. 验证硬切不能用 99 分位当阈值。</b>
+  那等于只取最大的 1%，最多检出 5 个，会把"检出 3/23"误读成"切点没压上" ——
+  其实是检测器自己把范围限死了。</p>
+  <p class="warn">共同点：<b>测量对象/阈值选错，会得出完全相反的结论。</b></p>
+</div>
+
+<!-- ============================================ 7 -->
+<h2><span class="n">07</span>顺带更正了一处旧结论</h2>
+
+<div class="card red">
+  <h4><span class="pill p-bad">已证伪</span>「setpts 里的减号会导致解析失败」</h4>
+  <p>这条结论之前写进了 skill，这次用矩阵实测<b>推翻</b>了：</p>
+  <pre><code>setpts=(T&lt;0.5)*(PTS-0.5)    →  Missing ')'   <span class="bad">✗</span>
+setpts=(T&lt;0.5)*(PTS+-0.5)   →  Missing ')'   <span class="bad">✗</span>  <span class="c">← 旧文档称"可用"</span>
+setpts=(T&lt;0.5)*(PTS+0.5)    →  Missing ')'   <span class="bad">✗</span>  <span class="c">← 无减号也挂！</span>
+setpts=(T&gt;0.5)*PTS          →  Missing ')'   <span class="bad">✗</span>
+setpts=lt(T\,0.5)*PTS       →  正常           <span class="ok">✓</span></code></pre>
+  <p><b>真正的规则</b>：这个 ffmpeg 构建不支持裸的 <code>&lt;</code> <code>&gt;</code>
+  比较运算符，必须改用 <code>lt()</code> / <code>gt()</code> / <code>gte()</code> 函数。</p>
+  <p><b>为什么会被误判成减号</b>：当时失败的例子
+  <code>(T&lt;1.4)*(PTS-1.4)</code> <b>同时含 <code>&lt;</code> 和 <code>-</code></b>；
+  改掉减号时恰好也换成了函数形式，于是归因到了错的那个变量上。</p>
+  <p class="warn">教训：验证"某字符是否是元凶"时，必须构造<b>只含该字符</b>的最小用例。
+  两个变量同时改，一定会归因错。</p>
+  <p>生产代码没受影响（全部用的是 <code>lt()/gte()</code>，grep 确认 30 处 gte + 17 处 lt），
+  但 skill 里的文档和 <code>_no_minus()</code> 的说明已更正。</p>
+</div>
+
+<!-- ============================================ 8 -->
+<h2><span class="n">08</span>怎么用</h2>
+
+<pre><code><span class="c"># 1) 分析 BGM 结构（已跑过，结果是 128BPM / Drop @30.18s）</span>
+python analyze_sections.py --zoom 18 45
+
+<span class="c"># 2) 精修相位（找最贴合底鼓的相位）</span>
+python refine_phase.py
+
+<span class="c"># 3) 与 librosa 对比（可选）</span>
+python cmp_librosa.py
+
+<span class="c"># 4) 卡点成片：实拍 + 交错素材</span>
+python edit_slop.py --footage 实拍.mp4 --material 参考片.mp4
+python edit_slop.py --footage 实拍.mp4 --material 参考片.mp4 --aspect square
+
+<span class="c"># 5) 验证（硬指标）</span>
+python verify_flash.py    <span class="c"># 闪白是否压点</span>
+python verify_cuts.py     <span class="c"># 硬切是否压点</span></code></pre>
+
+<div class="ask">
+  <h4>需要你提供的东西</h4>
+  <p><b>实拍素材还没有。</b>目前用合成的测试图案（testsrc2）占位跑通了全流程，
+  但真实效果需要你按原计划录一段：</p>
+  <ul>
+    <li>抬头、喝水之类的动作</li>
+    <li><b>至少 15 秒</b>（正常段 7.97s + 快剪段里的实拍片段约 7s）</li>
+    <li>用 <code>sigma_realtime.py</code> 录，或者任何 mp4 都行</li>
+  </ul>
+  <p>录好后直接跑第 4 步即可，参数都已按你的描述调好。</p>
+</div>
+
+<h3>还没做的</h3>
+<ul>
+  <li><b>梗图插入层</b> —— slop 语法里每 3-5 秒插 1-3 帧梗图，这是"绷不住"的主要来源，
+      但需要你提供梗图素材</li>
+  <li><b>RGB 故障"仅一次"</b> —— 你的需求写的是"全局叠加"，我按全局实现了；
+      若要"只在最重要 punchline 出现一次"，需要额外加时间门控</li>
+</ul>
+
+<div class="foot">
+  项目位置 <code>C:\Users\Lyonl\Desktop\SigmaMaleGenerator\</code> ·
+  卡点成片器 <code>edit_slop.py</code> ·
+  结构分析 <code>analyze_sections.py</code> ·
+  详细说明见 <code>README.md</code>
+</div>
+
+</div>
+</body>
+</html>

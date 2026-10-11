@@ -1,0 +1,149 @@
+:root{
+  --bg:#0D1117; --panel:#161B22; --panel2:#1C2128; --line:#30363D;
+  --fg:#E6EDF3; --dim:#8B949E; --hint:#484F58;
+  --gold:#E3B341; --green:#3FB950; --amber:#D29922; --red:#F85149;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg);color:var(--fg);overflow:hidden;
+  font-size:13px;line-height:1.55;
+  font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+  display:flex;flex-direction:column;
+}
+header{flex:none;height:52px;display:flex;align-items:center;gap:16px;
+  padding:0 16px;border-bottom:1px solid var(--line)}
+.brand{font-size:15px;font-weight:500;line-height:1.15}
+.brand small{display:block;font-size:11px;font-family:var(--mono);
+  color:var(--hint);letter-spacing:.1em}
+.chips{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;justify-content:flex-end}
+.chip{display:flex;align-items:center;gap:6px;font-size:11px;
+  font-family:var(--mono);color:var(--dim);white-space:nowrap}
+.chip .d{width:7px;height:7px;border-radius:50%;background:var(--hint);flex:none}
+.chip.ok .d{background:var(--green)}
+.chip.bad .d{background:var(--red)}
+
+main{flex:1;min-height:0;display:grid;gap:12px;padding:12px;
+  grid-template-columns:222px minmax(0,1fr) 300px}
+@media (max-width:1100px){main{grid-template-columns:196px minmax(0,1fr) 262px}}
+
+.rail,.side{display:flex;flex-direction:column;gap:10px;overflow:auto;min-height:0}
+.card{background:var(--panel);border:1px solid var(--line);
+  border-radius:8px;padding:9px 10px;flex:none}
+.card h3{margin:0 0 7px;font-size:11px;font-weight:400;color:var(--dim);
+  letter-spacing:.06em;display:flex;gap:6px;align-items:baseline}
+
+.btn{display:block;width:100%;border:1px solid var(--line);background:var(--panel2);
+  color:var(--fg);border-radius:6px;padding:7px 0;text-align:center;
+  font-size:13px;font-family:inherit;cursor:pointer}
+.btn:hover:not(:disabled){border-color:#4d5560}
+.btn.primary{background:var(--gold);border-color:var(--gold);
+  color:#1A1206;font-weight:500}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+.seg{display:flex;flex-wrap:wrap;gap:5px}
+.seg button{border:1px solid var(--line);background:transparent;color:var(--dim);
+  border-radius:5px;padding:4px 8px;font-size:11px;font-family:var(--mono);
+  cursor:pointer}
+.seg button.on{border-color:var(--gold);color:var(--gold)}
+
+.kv{display:flex;justify-content:space-between;gap:8px;font-size:11px;
+  color:var(--dim);padding:2px 0}
+.kv b{color:var(--fg);font-weight:400;font-family:var(--mono)}
+.hintline{font-size:11px;color:var(--hint);margin:7px 0 0;line-height:1.45}
+
+/* 表单：左栏录制参数、右栏生产线参数。刻意做得很紧凑 —— 两栏都不是宽栏。 */
+.row{display:flex;align-items:center;gap:6px;margin-top:6px}
+.row label{font-size:11px;color:var(--dim);flex:none}
+.row input,.row select{flex:1;min-width:0;background:var(--panel2);
+  border:1px solid var(--line);color:var(--fg);border-radius:5px;
+  padding:4px 6px;font-size:11px;font-family:var(--mono)}
+.fld{display:block;font-size:11px;color:var(--dim);margin:6px 0 3px}
+.card input[type=text],.card textarea{width:100%;background:var(--panel2);
+  border:1px solid var(--line);color:var(--fg);border-radius:5px;
+  padding:5px 7px;font-size:11px;font-family:var(--mono)}
+.card textarea{resize:vertical;line-height:1.5}
+.chk{display:flex;align-items:center;gap:6px;margin-top:7px;
+  font-size:11px;color:var(--dim);cursor:pointer}
+.chk input{flex:none}
+.fldrow{display:flex;align-items:center;justify-content:space-between;
+  margin:6px 0 3px}
+.fldrow .fld{margin:0}
+.mini{background:transparent;border:1px solid var(--line);color:var(--dim);
+  border-radius:4px;padding:2px 7px;font-size:11px;font-family:inherit;
+  cursor:pointer}
+.mini:hover{border-color:#4d5560;color:var(--fg)}
+/* 用真正的 select 而不是 datalist：datalist 在输入框为空时
+   单击不会展开候选（要双击或按 ↓），用户会以为"选不了"。 */
+.card select{width:100%;background:var(--panel2);border:1px solid var(--line);
+  color:var(--fg);border-radius:5px;padding:5px 7px;font-size:11px;
+  font-family:var(--mono);margin-top:5px}
+
+/* 画面框的尺寸由 app.js 的 fitStage() 按内容比例算好再写进来 ——
+   预览是 16:9（摄像头 1280x720），成品播放是 9:16（成片 1080x1920 竖屏）。
+   为什么不在 CSS 里用 aspect-ratio：一旦被 max-height 夹住宽高比就断了，
+   四角括号会漂到黑边里；两种朝向谁受限也不一样。交给 JS 算一次最准。 */
+.monitor{display:flex;flex-direction:column;gap:10px;min-height:0;
+  justify-content:center}
+.stage{position:relative;flex:none;align-self:center;background:#05070A;
+  border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stage img,.stage video{width:100%;height:100%;object-fit:contain;display:block}
+.corner{position:absolute;width:16px;height:16px;border:1.5px solid var(--gold);
+  opacity:.75;pointer-events:none}
+.corner.tl{left:10px;top:10px;border-right:0;border-bottom:0}
+.corner.tr{right:10px;top:10px;border-left:0;border-bottom:0}
+.corner.bl{left:10px;bottom:10px;border-right:0;border-top:0}
+.corner.br{right:10px;bottom:10px;border-left:0;border-top:0}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;padding:24px;text-align:center;font-size:12px;
+  color:var(--dim);background:rgba(5,7,10,.86);line-height:1.7}
+.overlay.hide{display:none}
+
+/* 录制中的画面叠加：倒数是金色大数字，录制中是红点 + 已录秒数。
+   pointer-events:none 保证它永远不挡住下面的画面交互。 */
+.recoverlay{position:absolute;left:0;right:0;top:0;bottom:0;display:none;
+  align-items:center;justify-content:center;pointer-events:none}
+.recoverlay.on{display:flex}
+.recoverlay b{font-family:var(--mono);font-weight:500;font-size:96px;
+  line-height:1;color:var(--gold);text-shadow:0 2px 16px rgba(0,0,0,.9)}
+.recoverlay.rec b{font-size:20px;color:var(--red)}
+
+.strip{flex:none;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  padding:8px 10px}
+.tabs{display:flex;gap:14px}
+.tabs button{background:none;border:0;border-bottom:1.5px solid transparent;
+  color:var(--dim);font-size:12px;font-family:inherit;padding:0 0 3px;cursor:pointer}
+.tabs button.on{color:var(--gold);border-bottom-color:var(--gold)}
+.vlabel{font-size:11px;font-family:var(--mono);color:var(--hint)}
+.reads{margin-left:auto;display:flex;gap:14px;font-size:11px;
+  font-family:var(--mono);color:var(--dim);flex-wrap:wrap}
+.reads b{color:var(--fg);font-weight:400}
+
+.steps{display:flex;flex-direction:column;gap:5px}
+.step{display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
+.step .s{font-size:11px;font-family:var(--mono);color:var(--hint)}
+.step.done .s{color:var(--green)}
+.step.run .s{color:var(--amber)}
+.step.run{color:var(--fg)}
+.step.skip .s{color:var(--hint)}
+.step.fail .s{color:var(--red)}
+.step.fail{color:var(--red)}
+
+.art{border:1px solid var(--line);border-radius:6px;padding:8px;
+  margin-bottom:6px;cursor:pointer}
+.art:hover{border-color:#4d5560;background:var(--panel2)}
+.art.on{border-color:var(--gold)}
+.art .n{font-size:11px;font-family:var(--mono);word-break:break-all}
+.art .m{display:flex;justify-content:space-between;gap:8px;margin-top:5px;
+  font-size:11px;font-family:var(--mono);color:var(--dim)}
+.pill{border-radius:4px;padding:1px 5px;font-size:11px;
+  background:var(--panel2);color:var(--hint)}
+.pill.ok{background:#0F2E18;color:var(--green)}
+.pill.wait{background:#2A2410;color:var(--amber)}
+
+footer{flex:none;height:30px;border-top:1px solid var(--line);
+  padding:0 16px;display:flex;align-items:center;
+  font-size:11px;font-family:var(--mono);color:var(--dim);overflow:hidden}
+footer .line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sigma Male Generator — 实现方案（待审核）</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d2129; --line:#2a2f3a;
+    --txt:#e6e9ef; --dim:#9aa3b2; --gold:#e8b33c; --gold2:#ffd479;
+    --green:#4ec97a; --red:#e2565f; --blue:#5aa9e6; --purple:#a97bd6;
+    --mono:"Cascadia Code","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:15px/1.75 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    padding:0 0 80px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 28px}
+  header{padding:52px 0 34px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(232,179,60,.07),transparent)}
+  h1{margin:0 0 10px;font-size:30px;letter-spacing:-.4px}
+  h1 .tag{font-size:12px;vertical-align:middle;margin-left:12px;padding:4px 11px;
+    border-radius:20px;background:rgba(232,179,60,.14);color:var(--gold);
+    border:1px solid rgba(232,179,60,.35);font-weight:500;letter-spacing:0}
+  .sub{color:var(--dim);font-size:14.5px}
+  .meta{margin-top:18px;display:flex;gap:26px;flex-wrap:wrap;font-size:13px;color:var(--dim)}
+  .meta b{color:var(--txt);font-weight:600}
+  h2{margin:52px 0 8px;font-size:21px;padding-bottom:11px;
+    border-bottom:1px solid var(--line)}
+  h2 .n{color:var(--gold);font-family:var(--mono);font-size:15px;
+    margin-right:11px;opacity:.85}
+  h3{margin:30px 0 10px;font-size:16.5px;color:var(--gold2)}
+  p{margin:11px 0}
+  code{font-family:var(--mono);font-size:13px;background:var(--panel2);
+    padding:2px 6px;border-radius:5px;color:var(--gold2)}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;
+    line-height:1.65;margin:14px 0}
+  pre code{background:none;padding:0;color:#cfd6e4}
+  .ok{color:var(--green)} .bad{color:var(--red)} .warn{color:var(--gold)}
+  .c{color:#697585}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+  th,td{padding:10px 13px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--dim);font-weight:600;font-size:12.5px;
+    text-transform:uppercase;letter-spacing:.5px}
+  tr:hover td{background:rgba(255,255,255,.017)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:20px 22px;margin:18px 0}
+  .card.gold{border-left:3px solid var(--gold)}
+  .card.red{border-left:3px solid var(--red)}
+  .card.green{border-left:3px solid var(--green)}
+  .card.blue{border-left:3px solid var(--blue)}
+  .card h4{margin:0 0 9px;font-size:15.5px}
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;
+    font-family:var(--mono);margin-right:7px}
+  .p-ok{background:rgba(78,201,122,.14);color:var(--green);
+    border:1px solid rgba(78,201,122,.3)}
+  .p-bad{background:rgba(226,86,95,.14);color:var(--red);
+    border:1px solid rgba(226,86,95,.3)}
+  .p-warn{background:rgba(232,179,60,.14);color:var(--gold);
+    border:1px solid rgba(232,179,60,.3)}
+  .p-info{background:rgba(90,169,230,.14);color:var(--blue);
+    border:1px solid rgba(90,169,230,.3)}
+  ul,ol{margin:11px 0;padding-left:24px}
+  li{margin:7px 0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}
+  @media(max-width:760px){.kpi{grid-template-columns:repeat(2,1fr)}}
+  .kpi div{background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:16px 14px;text-align:center}
+  .kpi .v{font-size:23px;font-weight:600;color:var(--gold);font-family:var(--mono)}
+  .kpi .l{font-size:12px;color:var(--dim);margin-top:5px}
+  .ask{background:linear-gradient(135deg,rgba(232,179,60,.1),rgba(232,179,60,.03));
+    border:1px solid rgba(232,179,60,.32);border-radius:12px;padding:22px 24px;
+    margin:22px 0}
+  .ask h4{margin:0 0 12px;color:var(--gold);font-size:16px}
+  .foot{margin-top:60px;padding-top:22px;border-top:1px solid var(--line);
+    color:var(--dim);font-size:13px}
+  svg{max-width:100%;height:auto;display:block;margin:20px auto}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>西格玛男人生成器 · 实现方案<span class="tag">待审核</span></h1>
+    <div class="sub">实时摄像头合成 + 固定 BGM 节拍卡点 → 竖屏 slop 短视频</div>
+    <div class="meta">
+      <span>项目位置 <b>C:\Users\Lyonl\Desktop\SigmaMaleGenerator\</b></span>
+      <span>测试 <b class="ok">全部通过</b></span>
+      <span>阻塞 <b class="warn">1 项</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ============================================ 1 -->
+<h2><span class="n">01</span>需求确认</h2>
+
+<p>按你最后一次的修改意见，方案已经收敛成这样：</p>
+
+<table>
+  <tr><th>项目</th><th>决定</th></tr>
+  <tr><td>输入</td><td>实时摄像头</td></tr>
+  <tr><td>录音</td><td class="ok">不做。录制阶段完全无声</td></tr>
+  <tr><td>音轨来源</td><td>固定一首 BGM：<code>gigachad theme (phonk house version)</code></td></tr>
+  <tr><td>卡点依据</td><td class="ok">对该 BGM 做离线节拍分析，据此决定画面第几秒快、第几秒慢</td></tr>
+  <tr><td>输出</td><td>1080×1920 竖屏 / 30fps / h264 + aac</td></tr>
+</table>
+
+<div class="card blue">
+  <h4>一个关键认识：BGM 固定 → 只需分析一次</h4>
+  <p>这跟"用麦克风实时判定节拍"是完全不同的两件事。BGM 固定带来三个好处：</p>
+  <ul>
+    <li><b>只分析一次</b>，结果缓存成 json，导出速度不受影响</li>
+    <li><b>可人工校正</b>——分析结果是可读的 json，觉得 BPM 不对能直接改</li>
+    <li><b>可复现</b>——每次渲染的卡点都一致，不像实时判定会抖动</li>
+  </ul>
+</div>
+
+<!-- ============================================ 2 -->
+<h2><span class="n">02</span>管线架构</h2>
+
+<p>整体分两个阶段，中间用"无声素材"解耦。这个解耦是整个方案里最重要的结构决定：</p>
+
+<svg viewBox="0 0 680 400" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Microsoft YaHei,sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+      <path d="M0,0 L7,3.2 L0,6.4 z" fill="#8b95a8"/>
+    </marker>
+  </defs>
+
+  <!-- 阶段一 -->
+  <rect x="8" y="10" width="664" height="150" rx="11" fill="#171a21" stroke="#2a2f3a"/>
+  <text x="26" y="36" fill="#e8b33c" font-size="13.5" font-weight="600">阶段一 · 录制（sigma_realtime.py）</text>
+  <text x="640" y="36" fill="#9aa3b2" font-size="11" text-anchor="end">产出：无声竖屏素材</text>
+
+  <rect x="30" y="52" width="120" height="44" rx="8" fill="#1d2129" stroke="#3a4150"/>
+  <text x="90" y="71" fill="#e6e9ef" font-size="12.5" text-anchor="middle">摄像头采集</text>
+  <text x="90" y="87" fill="#697585" font-size="10.5" text-anchor="middle">OpenCV DSHOW</text>
+
+  <rect x="180" y="52" width="150" height="44" rx="8" fill="#1d2129" stroke="#3a4150"/>
+  <text x="255" y="71" fill="#e6e9ef" font-size="12.5" text-anchor="middle">MediaPipe 检测</text>
+  <text x="255" y="87" fill="#697585" font-size="10.5" text-anchor="middle">人脸478 + 姿态33</text>
+
+  <rect x="360" y="52" width="130" height="44" rx="8" fill="#1d2129" stroke="#3a4150"/>
+  <text x="425" y="71" fill="#e6e9ef" font-size="12.5" text-anchor="middle">模板合成</text>
+  <text x="425" y="87" fill="#697585" font-size="10.5" text-anchor="middle">sigma/chad/scan</text>
+
+  <rect x="520" y="52" width="132" height="44" rx="8" fill="#1d2129" stroke="#3a4150"/>
+  <text x="586" y="71" fill="#e6e9ef" font-size="12.5" text-anchor="middle">导出竖屏素材</text>
+  <text x="586" y="87" fill="#697585" font-size="10.5" text-anchor="middle">无声 · 1080×1920</text>
+
+  <path d="M150,74 L176,74" stroke="#8b95a8" stroke-width="1.3" marker-end="url(#ar)"/>
+  <path d="M330,74 L356,74" stroke="#8b95a8" stroke-width="1.3" marker-end="url(#ar)"/>
+  <path d="M490,74 L516,74" stroke="#8b95a8" stroke-width="1.3" marker-end="url(#ar)"/>
+
+  <text x="90" y="126" fill="#4ec97a" font-size="11.5" text-anchor="middle">✗ 不采集麦克风</text>
+  <text x="90" y="142" fill="#697585" font-size="10.5" text-anchor="middle">（本机麦克风实测无信号）</text>
+
+  <!-- 解耦分隔：箭头保持在中轴，标签放到右侧，避免箭头被半透明标签遮住 -->
+  <path d="M340,166 L340,201" stroke="#e8b33c" stroke-width="1.6" stroke-dasharray="5,4" marker-end="url(#ar)"/>
+  <rect x="356" y="172" width="214" height="22" rx="11" fill="rgba(232,179,60,.12)" stroke="rgba(232,179,60,.4)"/>
+  <text x="463" y="187.5" fill="#e8b33c" font-size="11.5" text-anchor="middle">解耦：换 BGM 不必重录素材</text>
+
+  <!-- 阶段二 -->
+  <rect x="8" y="206" width="664" height="184" rx="11" fill="#171a21" stroke="#2a2f3a"/>
+  <text x="26" y="232" fill="#e8b33c" font-size="13.5" font-weight="600">阶段二 · 卡点成片（bgm_pipeline.py）</text>
+  <text x="640" y="232" fill="#9aa3b2" font-size="11" text-anchor="end">产出：卡点成片</text>
+
+  <rect x="30" y="248" width="150" height="52" rx="8" fill="#1d2129" stroke="#5aa9e6"/>
+  <text x="105" y="267" fill="#5aa9e6" font-size="12.5" text-anchor="middle">BGM 节拍分析</text>
+  <text x="105" y="283" fill="#697585" font-size="10.5" text-anchor="middle">能量包络→起点→BPM</text>
+  <text x="105" y="296" fill="#697585" font-size="10.5" text-anchor="middle">→相位对齐</text>
+
+  <rect x="215" y="248" width="150" height="52" rx="8" fill="#1d2129" stroke="#5aa9e6"/>
+  <text x="290" y="267" fill="#5aa9e6" font-size="12.5" text-anchor="middle">锚点规划</text>
+  <text x="290" y="283" fill="#697585" font-size="10.5" text-anchor="middle">目标时长= N 个强拍</text>
+  <text x="290" y="296" fill="#697585" font-size="10.5" text-anchor="middle">慢放中点压强拍</text>
+
+  <rect x="400" y="248" width="122" height="52" rx="8" fill="#1d2129" stroke="#3a4150"/>
+  <text x="461" y="267" fill="#e6e9ef" font-size="12.5" text-anchor="middle">变速 + 调色</text>
+  <text x="461" y="283" fill="#697585" font-size="10.5" text-anchor="middle">setpts 分段</text>
+  <text x="461" y="296" fill="#697585" font-size="10.5" text-anchor="middle">+ 竖屏</text>
+
+  <rect x="546" y="248" width="106" height="52" rx="8" fill="#1d2129" stroke="#3a4150"/>
+  <text x="599" y="267" fill="#e6e9ef" font-size="12.5" text-anchor="middle">混入 BGM</text>
+  <text x="599" y="283" fill="#697585" font-size="10.5" text-anchor="middle">atrim + 淡出</text>
+
+  <path d="M180,274 L211,274" stroke="#8b95a8" stroke-width="1.3" marker-end="url(#ar)"/>
+  <path d="M365,274 L396,274" stroke="#8b95a8" stroke-width="1.3" marker-end="url(#ar)"/>
+  <path d="M522,274 L542,274" stroke="#8b95a8" stroke-width="1.3" marker-end="url(#ar)"/>
+
+  <text x="26" y="334" fill="#9aa3b2" font-size="11.5">核心矛盾：</text>
+  <text x="26" y="353" fill="#e6e9ef" font-size="11.5">变速会改变画面时长，而 BGM 是固定的 → 不能"先变速再看卡点准不准"</text>
+  <text x="26" y="372" fill="#e8b33c" font-size="11.5">必须以 BGM 的节拍时间轴为基准，反过来决定画面第几秒快、第几秒慢</text>
+</svg>
+
+<!-- ============================================ 3 -->
+<h2><span class="n">03</span>关键设计决策</h2>
+
+<div class="grid">
+<div class="card gold">
+  <h4>① 锚点对齐慢放段的「中点」</h4>
+  <p>慢放的视觉冲击在段中部最强。如果让<b>起点</b>对齐强拍，"最慢的那一帧"会落在
+  强拍之后半个段长。</p>
+  <p>所以锚点 = 慢放段起点，而真正压住强拍的是
+  <code>anchor + slow_window/2</code>。</p>
+  <p class="warn">这个语义必须写清楚，否则校验时拿 anchor 直接比对强拍，
+  会得到"全部偏差 540ms"的假失败。</p>
+</div>
+
+<div class="card gold">
+  <h4>② 时长在「输出侧」累加</h4>
+  <p>不变式：<code>Σ加速段输出 + Σ慢放段输出 == 目标时长</code>。</p>
+  <p>素材长度是<b>反推量</b>：<code>素材 = 输出 × 速度</code>。素材不够就慢放补，
+  多了就加速压——这正是"视频适配音频"的含义。</p>
+  <p class="warn">早期版本按输入侧累加，得到 total_out=24.56s vs 目标 7.5s（偏 227%）。</p>
+</div>
+</div>
+
+<div class="grid">
+<div class="card blue">
+  <h4>③ offset 必须参与运算</h4>
+  <p>BGM 的第 0 个强拍不一定落在 0.0s（前奏/淡入会让首拍后移）。</p>
+  <p>若忽略 offset，所有慢放段整体偏移 offset 秒，而偏差量<b>恰好等于 offset</b>
+  （1:1）——offset=0 时"看起来完全正确"，offset=0.456 时错 456ms。</p>
+</div>
+
+<div class="card blue">
+  <h4>④ 素材 / 配乐解耦</h4>
+  <p>录制只出无声素材，配乐在后期混入。</p>
+  <p>实测收益：同一段素材，128BPM 出 3.74s，100BPM 出 4.80s，
+  <b>不用重录</b>。</p>
+</div>
+</div>
+
+<!-- ============================================ 4 -->
+<h2><span class="n">04</span>开发中抓到的三个真实 Bug</h2>
+
+<p>这三个都值得单独说，因为它们的共同特征是：
+<b>纯数学单元测试全绿，但成片是坏的。</b></p>
+
+<div class="card red">
+  <h4><span class="pill p-bad">BUG 1</span>分段表达式漏了乘号 → ffmpeg 报 Missing ')'</h4>
+  <pre><code><span class="bad">✗</span> ...(T&lt;2.26)(T&gt;=2.26)*(T&lt;2.64)...     <span class="c">// 相邻括号并列</span>
+<span class="ok">✓</span> ...(T&lt;2.26)*(T&gt;=2.26)*(T&lt;2.64)...    <span class="c">// 区间之间也要 * 连</span></code></pre>
+  <p>每个区间<b>内部</b>用 <code>*</code> 连是对的，但<b>区间与区间之间也必须用
+  <code>*</code></b>。用 <code>"".join()</code> 拼条件时极易漏掉分隔符。</p>
+  <p class="warn">危险点：拼出来的字符串在 Python 里"看起来完全正常"，
+  只有真交给 ffmpeg 才炸。</p>
+</div>
+
+<div class="card red">
+  <h4><span class="pill p-bad">BUG 2</span>双重转义 → No such filter: '2.2645)\'</h4>
+  <p>我自己写了 <code>\,</code>，又交给统一的转义函数转了一次，变成 <code>\\,</code>。</p>
+  <p><b>判据</b>：报错里出现<b>带反斜杠的片段</b>，就是转义了两次，
+  而不是"逗号没转义"。</p>
+  <p>教训：转义权只能有一处，传入<b>裸表达式</b>。</p>
+</div>
+
+<div class="card red">
+  <h4><span class="pill p-bad">BUG 3</span>fit_to_beats 忽略 offset</h4>
+  <p>症状极具迷惑性：偏差<b>恰好等于 offset</b>，而 offset=0.000 的用例是"通过"的。
+  只测 offset=0 就会漏掉。</p>
+</div>
+
+<div class="card green">
+  <h4>顺带做的重构（比修 Bug 更有价值）</h4>
+  <p>把"掩码相加法"整体换成"从后往前的<b>嵌套 if</b>"。掩码法里第 i 段要写成
+  "落在第 0..i 段全都满足"，长度天然是 <b>O(N²)</b>；嵌套 if 是 <b>O(N)</b>。</p>
+  <table>
+    <tr><th>段数</th><th>掩码相加</th><th>嵌套 if</th></tr>
+    <tr><td>8 段</td><td>1.06 KB</td><td class="ok">0.38 KB</td></tr>
+    <tr><td>32 段</td><td class="bad">13.8 KB</td><td class="ok">1.58 KB</td></tr>
+    <tr><td>128 段</td><td class="bad">（继续平方增长）</td><td class="ok">6.42 KB</td></tr>
+  </table>
+  <p>附带好处：语义直白、能手改。约束是嵌套深度 ≤ ffmpeg 的
+  <code>max_nesting</code>（默认 40），32 层安全。</p>
+</div>
+
+<!-- ============================================ 5 -->
+<h2><span class="n">05</span>验证结果</h2>
+
+<div class="kpi">
+  <div><div class="v">0.05%</div><div class="l">成片时长误差</div></div>
+  <div><div class="v">0.20<span style="font-size:14px">ms</span></div><div class="l">锚点偏差（容差20ms）</div></div>
+  <div><div class="v">≤0.27</div><div class="l">BPM 识别误差</div></div>
+  <div><div class="v">≤4.2<span style="font-size:14px">ms</span></div><div class="l">相位对齐误差</div></div>
+</div>
+
+<table>
+  <tr><th>测试</th><th>内容</th><th>结果</th></tr>
+  <tr><td><code>test_beat.py</code></td><td>节拍算法回测（合成信号，标准答案已知）</td><td class="ok">11/11</td></tr>
+  <tr><td><code>test_beat_sync.py</code></td><td>锚点对齐 + 时长守恒 + offset 处理</td><td class="ok">全部通过</td></tr>
+  <tr><td><code>test_templates.py</code></td><td>19 条 ffmpeg 滤镜链逐条实跑</td><td class="ok">19/19</td></tr>
+  <tr><td><code>test_clean_hud.py</code></td><td>录制帧不含调试读数</td><td class="ok">全部通过</td></tr>
+  <tr><td><code>test_audio.py</code></td><td>无声录制 + BGM 混音 + 音轨检测</td><td class="ok">7/7</td></tr>
+  <tr><td><code>test_bgm_pipeline.py</code></td><td><b>端到端</b>：合成 BGM → 卡点渲染 → 校验规格/时长/音轨</td><td class="ok">10/10</td></tr>
+  <tr><td><code>check_launch.py</code></td><td>启动自检（模型/摄像头/HUD/卡点链路/BGM）</td><td class="ok">全部链路正常</td></tr>
+</table>
+
+<div class="card gold">
+  <h4>为什么必须有端到端测试</h4>
+  <p>算法测试全绿<b>不代表</b>成片正确。BUG 1 和 BUG 2 都是
+  "表达式数学正确、但 ffmpeg 直接拒绝执行"。</p>
+  <p>端到端测试判定的是<b>硬指标</b>：退出码、文件大小（&gt;1KB 挡住 0 字节静默失败）、
+  成片时长、音轨有无。<b>不看观感</b>——观感无法评审，也无法回归。</p>
+</div>
+
+<!-- ============================================ 6 -->
+<h2><span class="n">06</span>需要你决定的一件事</h2>
+
+<div class="ask">
+  <h4>⛔ 阻塞：BGM 文件还没有</h4>
+  <p>我把该做的都做好了，但<b>分析链路无法在真实音频上验证</b>，
+  因为机器上没有 <code>gigachad theme (phonk house version)</code>。</p>
+
+  <p><b>为什么不能自动下载</b>：本机实测 <b>YouTube 完全不可达</b> ——</p>
+  <ul>
+    <li>直连：TCP 超时</li>
+    <li>走代理：<code>SSL UNEXPECTED_EOF</code>（代理丢弃 TLS 流）</li>
+    <li>而 PyPI 两条路都通（1.1~1.4s），说明不是网络全断，是 YouTube 被单独挡了</li>
+  </ul>
+
+  <p><b>需要你做的</b>：把音频文件放进</p>
+  <pre><code>C:\Users\Lyonl\Desktop\SigmaMaleGenerator\bgm\</code></pre>
+  <p>文件名随意（程序会取目录里第一个音频），建议命名
+  <code>gigachad_phonk.mp3</code>。支持 mp3 / m4a / wav / aac / opus / flac。</p>
+
+  <p>放好之后跑一次这个，就能看到 BPM 和强拍是否识别正常：</p>
+  <pre><code>python bgm_pipeline.py --analyze-only</code></pre>
+
+  <p class="warn">在此之前，所有验证都基于<b>合成 BGM</b>（BPM 已知，属于真验证），
+  但不等价于真实 phonk —— 真实曲子有前奏、变速段、静音段，
+  可能会暴露 onset 检测的新问题。</p>
+</div>
+
+<h3>同时想跟你确认的几个选择</h3>
+<table>
+  <tr><th>项</th><th>当前默认</th><th>说明</th></tr>
+  <tr><td>成片长度</td><td>4 个强拍（≈7.5s @128BPM）</td>
+      <td>slop 语法建议 15-30s，可改 <code>--downbeats 8</code>（≈15s）</td></tr>
+  <tr><td>慢放倍率</td><td>0.45</td><td>数字越小越慢，卡点感越强</td></tr>
+  <tr><td>快段倍率</td><td>2.2</td><td>数字越大越快，对比越强</td></tr>
+  <tr><td>BGM 音量</td><td>0.85</td>
+      <td>slop 规范说 15-25%，但那是"有人声口播"的情况；这里 BGM 是主角</td></tr>
+</table>
+
+<h3>还没做的（等 BGM 到位后再定）</h3>
+<ul>
+  <li><b>梗图插入层</b>——slop 语法里每 3-5 秒插 1-3 帧梗图。这是原视频最核心的
+      "绷不住"来源，但需要你提供梗图素材</li>
+  <li><b>RGB 故障只出现一次</b>——规范说整片仅 1 次，放在最重要的 punchline。
+      现在的模板是整段轻微色散</li>
+  <li><b>强拍假设 4/4 拍</b>（<code>beats[::4]</code>），3/4 拍的曲子需要调整</li>
+</ul>
+
+<!-- ============================================ 7 -->
+<h2><span class="n">07</span>怎么用</h2>
+
+<pre><code><span class="c"># 1) 录制素材（对着摄像头玩，按 R 开始/停止，再按 R 停止并导出）</span>
+python sigma_realtime.py
+
+<span class="c"># 2) 把 BGM 放进 bgm\ 目录，然后分析一次</span>
+python bgm_pipeline.py --analyze-only
+
+<span class="c"># 3) 卡点成片</span>
+python bgm_pipeline.py --downbeats 4 --grade sigma</code></pre>
+
+<p>也可以直接双击 <code>启动.bat</code> / <code>卡点成片.bat</code> / <code>套模板.bat</code>。</p>
+
+<h3>两个脚本的分工</h3>
+<table>
+  <tr><th>脚本</th><th>管什么</th></tr>
+  <tr><td><code>slop_apply.py</code></td><td>只管<b>画面</b>（变速/调色/抖动/RGB/构图），不碰音频</td></tr>
+  <tr><td><code>bgm_pipeline.py</code></td><td>只管<b>卡点 + 配乐</b></td></tr>
+</table>
+<p class="warn">分成两步是因为画面滤镜会改变时长。一次性写完会让算锚点依赖的
+"输出时间轴"失效，卡点整体漂移——而漂移量恰好等于时长变化，肉眼极难发现。</p>
+
+<div class="foot">
+  项目位置 <code>C:\Users\Lyonl\Desktop\SigmaMaleGenerator\</code> ·
+  详细说明见同目录 <code>README.md</code> ·
+  模板调研见 <code>slop_templates/SLOP_TEMPLATES.md</code>
+</div>
+
+</div>
+</body>
+</html>
